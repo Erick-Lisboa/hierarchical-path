@@ -14,15 +14,15 @@ class pathManager:
     Attributes:
     path (pathlib.Path): Managed path.
     data (dict): Hierarchical path storage data.
-    parts (list): Parts of the path.
     storage_file (str): Path of the .json file that will store the data
     """
     def __init__(
             self,
-            path: Optional[str] = None,
+            path: str,
             storage_file: Optional[str] = None,
         ) -> None:
-        self.path: pathlib.Path = self.mk_path_obj(path)
+        self.set_path(path)
+        self.path: pathlib.Path 
         self.data = self.laod_data(storage_file) if storage_file else {}
         self.storage_file = storage_file
 
@@ -47,6 +47,7 @@ class pathManager:
 
         # Passes the parameters so that the next element of the listed path is added to the data
         self.add(segment=segment[current_element], path=path[1:])
+
     def decrease(self) -> None:
         """
         Removes the managed path.
@@ -66,6 +67,7 @@ class pathManager:
         for part in path_obj.parts:
             segment = segment[part]
         return segment
+
     def get_all(self) -> Union[List[str], None]:
         """
         Returns all stored paths.
@@ -79,6 +81,7 @@ class pathManager:
         Get the current data.
         """
         return self.data
+
     def get_path(self, segment: Dict[str, Optional[Dict]]) -> str:
         """
         Returns the path of the past segment.
@@ -119,10 +122,14 @@ class pathManager:
         Adds the managed path to the data.
         """
         self.add(segment=self.data, path=self.path.parts)
-    def laod_data(self) -> Optional[Dict[str, Optional[Dict]]]:
+
+    def laod_data(self, storage_file: str) -> Optional[Dict[str, Optional[Dict]]]:
         """
         Load file from storage and set data attribute.
         """
+        with open(str(storage_file), 'r') as file:
+            return json.load(file)
+
     def mk_path_obj(self, path: str) -> pathlib.Path:
         """
         Returns the path instance of the 'pathlib.Path' class.
@@ -136,6 +143,7 @@ class pathManager:
         if not path_object.exists():
             raise NotADirectoryError(f"{path} Does not exist.")
         return path_object
+
     def remove(self, path: str) -> None:
         """
         Removes the past path.
@@ -143,6 +151,9 @@ class pathManager:
         Parameters:
         path (str): Path that will be removed
         """
+        if isinstance(path, str):
+            path = self.mk_path_obj(path)
+            
     def removes(self, paths: List[str]) -> None:
         """
         Removes the passed path if the path is in the data.
@@ -158,6 +169,9 @@ class pathManager:
         """
         Saves data to the storage file if the file is not None.
         """
+        with open(self.storage_file, 'w') as file:
+            json.dumps(file)
+
     def set_file(self, path: Optional[str]) -> None:
         """
         Defines the storage file, the 'data' attribute is changed to the file data and the data will be saved in the file.
@@ -165,7 +179,9 @@ class pathManager:
         Parameters:
         path (str): The storage file.
         """
-    def set_managed_path(self, path: Optional[str]) -> None:
+        self.storage_file = path
+
+    def set_path(self, path: Optional[str]) -> None:
         """
         Defines the path that will be managed.
 
@@ -178,5 +194,3 @@ class pathManager:
         FileNotFoundError: If 'path' is not a file.
         """
         self.path = self.mk_path_obj(path=path)
-
-        return self.laod_data()
