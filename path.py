@@ -1,74 +1,74 @@
 import json
 import pathlib
-from typing import Dict, Optional, Union, List
+from typing import Dict, Optional, Union, Literal, List
 
-class pathManager:
+class PathManager:
     """
     Path manager for hierarchical path storage.
     Manages a path to store it in a dictionary.
 
     Parameters:
-    path (str): Path or  that will be managed.
+    data (Opitional[dict]): Data that will be managed.
     storage_file: Path of the .json file that will store and read the data for management
 
     Attributes:
-    path (pathlib.Path): Managed path.
+    path (Opitional[pathlib.Path])
     data (dict): Hierarchical path storage data.
     storage_file (str): Path of the .json file that will store the data
     """
     def __init__(
             self,
-            path: str,
+            data: Optional[Dict[str, Optional[Dict]]] = None,
             storage_file: Optional[str] = None,
         ) -> None:
-        self.set_path(path)
-        self.path: pathlib.Path 
-        self.data = self.laod_data(storage_file) if storage_file else {}
+        self.path: pathlib.Path
+        self.data = {} if data is None else data
         self.storage_file = storage_file
 
-    def add(self, segment: Dict[str, Optional[Dict]], path: List[str]) -> None:
+    def add(self, segment: Dict[str, Optional[Dict]], parts: List[str]) -> None:
         """
-        Repeat the path list by creating a new segment and adding.
+        Adds the path parts to the segment.
 
         Parameters:
-        segment (dict): New segment that will be edited.
-        path (list): The listed path that will be added.
+        segment (dict): Segment that will be edited.
+        path (list): The listed parts of a path that will be added to the segment.
         """
-        if not path:
-            return
-
-        current_element = path[0]
-        if current_element not in segment:
-            # Checks if the 'current element' is the last element of the path (file) if the path is not a directory.
-            if self.path.is_file() and len(path) == 1:
-                segment[current_element] = None
+        for part in parts:
+            # Add None to new segment if the part is a file.
+            if part == [parts-1] and self.path.is_file():
+                segment[part] = None
             else:
-                segment[current_element] = {}
+                # Adds a dictionary if the part is a folder.
+                segment[part] = {}
 
-        # Passes the parameters so that the next element of the listed path is added to the data
-        self.add(segment=segment[current_element], path=path[1:])
-
-    def decrease(self) -> None:
+    def decrease(self, path: str) -> None:
         """
         Removes the managed path.
+
+        Parameters:
+        path (str): Path that will be removed.
         """
+        setattr(self, "path", self.convert_to_path(path=path))
+        self.rm(segment=self.data, path=self.path.parts)
+        self.path = None
+
     def find(self, path: str) -> Dict[str, Optional[Dict]]:
         """               
         Returns the segment of the past path.
 
         Parameters:
-        path (str): The path that will be searched in the data.
+        path (str): Path that will be searched.
 
         Returns:
-        dict: The segment of the past path sought in the data.
+        dict (Dict[str, Optional[Dict]]): Segment of the past path sought.
         """
         segment = self.data
-        path_obj = self.mk_path_obj(path=path)
+        path_obj = self.convert_to_path(path=path)
         for part in path_obj.parts:
             segment = segment[part]
         return segment
 
-    def get_all(self) -> Union[List[str], None]:
+    def get_all(self) -> Optional[List[str]]:
         """
         Returns all stored paths.
 
@@ -80,57 +80,78 @@ class pathManager:
         """
         Get the current data.
         """
-        return self.data
+        return getattr(self, "data")
 
     def get_path(self, segment: Dict[str, Optional[Dict]]) -> str:
         """
         Returns the path of the past segment.
 
         Parameters:
-        segment (dict): Segment that will take the path.
+        segment (Dict[str, Optional[Dict]]): Segment that will take the path.
 
         Returns:
-        str: Path collected in the data
+        str: Path collected
         """
     def get_segment(self, path: str) -> Dict[str, Optional[Dict]]:
         """
-        Returns the path segment in the data.
+        Returns the path segment.
 
         Parameters:
-        path: Path that will be collected in data.
+        path: Path that will be collected.
 
         Returns:
-        dict: Past path segment.
+        Dict[str, Optional[Dict]]: Past path segment.
         """
-    def get_stored(self) -> Union[Dict[str, Optional[Dict]], None]:
+    def get_stored(self) -> Optional[Dict[str, Optional[Dict]]]:
         """
         Returns the stored data if there is a file.
 
         Returns:
-        dict: The stored data.
+        Dict[str, Optional[Dict]]: Stored data.
         None: If there is no data stored.
         """
     def in_the_data(self, path: str) -> bool:
         """
-        Returns whether the path is in the data.
+        Returns whether the path is.
 
         Returns:
         bool: If the path is stored.
         """
-    def increase(self) -> None:
+    def increase(self, path: str) -> None:
         """
-        Adds the managed path to the data.
+        Adds the path to the data.
         """
+        setattr(self, "path", self.convert_to_path(path=path))
         self.add(segment=self.data, path=self.path.parts)
+        setattr(self, "path", None)
 
-    def laod_data(self, storage_file: str) -> Optional[Dict[str, Optional[Dict]]]:
+    def upload_current_storage(self) -> None:
         """
-        Load file from storage and set data attribute.
+        Loads the storage file and sets data as its content.
         """
-        with open(str(storage_file), 'r') as file:
-            return json.load(file)
+        self.upload(self.storage_file)
 
-    def mk_path_obj(self, path: str) -> pathlib.Path:
+    def upload_new_storage(self, storage_file: str) -> None:
+        """
+        Resets the managed data to the contents of the .json file.
+
+        Parameters:
+        storage_file (str): File that will be loaded and managed.
+        """
+        self.upload(storage_file)
+
+    def upload(self, storage_file: str) -> None:
+        """
+        Loads a new path to be managed.
+
+        Parameters:
+        storage_file (str): File that will be managed.
+        """
+        with open(str(storage_file), "r") as file:
+            new_data = json.load(file)
+            setattr(self, "data", new_data)
+
+    def convert_to_path(self, path: str) -> pathlib.Path:
         """
         Returns the path instance of the 'pathlib.Path' class.
 
@@ -138,10 +159,10 @@ class pathManager:
         pathlib.Path: Path instance.
         """
         if not isinstance(path, str):
-            raise TypeError(f"'{path}' It is not string.")
+            raise TypeError(f"The provided object must be a 'str', the provided object was: {type(path).__name__}")
         path_object = pathlib.Path(path)
         if not path_object.exists():
-            raise NotADirectoryError(f"{path} Does not exist.")
+            raise FileNotFoundError()
         return path_object
 
     def remove(self, path: str) -> None:
@@ -152,8 +173,10 @@ class pathManager:
         path (str): Path that will be removed
         """
         if isinstance(path, str):
-            path = self.mk_path_obj(path)
-            
+            path = self.convert_to_path(path)
+
+        self.rm(segment=self.data, path=path.parts)
+
     def removes(self, paths: List[str]) -> None:
         """
         Removes the passed path if the path is in the data.
@@ -161,36 +184,50 @@ class pathManager:
         Parameters:
         paths (List[str]): List of paths that will be removed.
         """
+        for path in paths:
+            self.remove(path)
+
     def remove_file(self) -> None:
         """
         Removes the file from storage. Sets the 'data' attribute to None. 
         """
+        setattr(self, "storage_file", None)
+
+    def rm(self, segment: Dict[str, Optional[dict]], parts: List[str]) -> None:
+        """
+        Removes the path segment passed in a list.
+
+        Parameters:
+        segment (Dict[str, Optional[dict]]): Segment for the path to be removed.
+        path (list[str]): List of parts of a path.
+        """
+        for part in parts[:-1]:
+            segment = segment[part]
+        segment.clear()
+
     def save(self) -> None:
         """
         Saves data to the storage file if the file is not None.
         """
-        with open(self.storage_file, 'w') as file:
+        with open(self.storage_file, "w") as file:
             json.dumps(file)
+
+    def set_data(self, data: Dict[str, Optional[dict]]) -> None:
+        """
+        Resets the managed data.
+
+        Parameters:
+        data: Dict[str, Optional[dict]]: Data that will be managed.
+        """
+        if not isinstance(data, dict):
+            raise TypeError(f"The provided object must be a 'dict', the provided object was: {type(data).__name__}")
+        setattr(self, "data", data)
 
     def set_file(self, path: Optional[str]) -> None:
         """
         Defines the storage file, the 'data' attribute is changed to the file data and the data will be saved in the file.
 
         Parameters:
-        path (str): The storage file.
+        path (Opitional[str]): The storage file.
         """
-        self.storage_file = path
-
-    def set_path(self, path: Optional[str]) -> None:
-        """
-        Defines the path that will be managed.
-
-        Parameters:
-        path (str): The path that will be the 'path' attribute.
-
-        Raises:
-        TypeError: If 'path' is not the 'str' instance.
-        NotADirectoryError: If 'path' is not a directory.
-        FileNotFoundError: If 'path' is not a file.
-        """
-        self.path = self.mk_path_obj(path=path)
+        setattr(self, "storage_file", path)
