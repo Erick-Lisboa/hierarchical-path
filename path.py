@@ -4,18 +4,29 @@ from typing import Dict, Optional, Union, Literal, List
 
 class PathManager:
     """
-    Path manager for hierarchical path storage.
-    Manages a path to store it in a dictionary.
+    Hierarchically stored valid path data manager.
+    The hierarchy is an object with nested paths, where each part of the
+    path has its characteristics stored in a key represented by "//".
+    Itscharacteristics are as follows:
+        "stored", if part of the path was stored;
+        "file", if the path is a file;
+        "stored_in", when it was stored;
 
     Parameters:
-    data (Opitional[dict]): Data that will be managed.
-    storage_file: Path of the .json file that will store and read the data for management
+    -----------
+    data: Opitional[dict]
+        Data that will be managed.
+    storage_file: Opitioal[str]
+        Path of the .json file that will store and read the data for management
 
     Attributes:
-    path (Opitional[pathlib.Path])
-    data (dict): Hierarchical path storage data.
-    storage_file (str): Path of the .json file that will store the data
+    -----------
+    data: dict
+        Hierarchical path storage data.
+    storage_file: str
+        Path of the .json file that will store the data
     """
+
     def __init__(
             self,
             data: Optional[Dict[str, Optional[Dict]]] = None,
@@ -33,13 +44,20 @@ class PathManager:
         segment (dict): Segment that will be edited.
         path (list): The listed parts of a path that will be added to the segment.
         """
+        import datetime
+
         for part in parts:
-            # Add None to new segment if the part is a file.
-            if part == [parts-1] and self.path.is_file():
-                segment[part] = None
-            else:
-                # Adds a dictionary if the part is a folder.
+            if part not in segment:
                 segment[part] = {}
+                segment[part]["//"] = {}  # Defines the characteristics object.
+            is_file = self.path.is_file()
+            is_stored = part == parts[-1]
+            features = segment[part]["//"]
+            features["file"] = is_file
+            features["stored"] = is_stored
+            time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+            features["stored_in"] = time if is_stored else None
+            segment = segment[part]
 
     def decrease(self, path: str) -> None:
         """
