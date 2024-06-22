@@ -6,7 +6,7 @@ from typing import (
     Union,
     Literal,
     List,
-    Tuple
+    Tuple,
 )
 
 msg = {
@@ -26,9 +26,9 @@ class PathManager:
     Parameters:
     -----------
     data: Opitional[dict]
-        Data that will be managed.
+        Data that will be managed. Defaults to None.
     storage_file: Opitioal[str]
-        Path of the .json file that will store and read the data for management
+        Path of the .json file that will store and read the data for management. Defaults to None.
 
     Attributes:
     -----------
@@ -59,19 +59,51 @@ class PathManager:
         """
         import datetime
 
+        def update_properties(
+            properties: Dict[str, bool],
+            file: bool = False,
+            stored: bool = False,
+            stored_in: datetime.datetime = None
+        ) -> None:
+            """
+            Changes the properties of the stored part.
+
+            Parameters:
+            properties (Dict[str, bool]):
+            file (bool, optional): . Defaults to False.
+            stored (bool, optional): . Defaults to False.
+            stored_in (datetime.datetime, optional): . Defaults to None.
+            """
+            properties["file"] = file
+            properties["stored"] = stored
+            properties["stored_in"] = stored_in
+
+        time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
         for part in parts:
+            is_file = self.to_path(parts).is_file()
+            is_stored = part == parts[-1]
+
             if part not in obj:
                 obj[part] = {}
                 # Defines the property object.
                 obj[part]["//"] = self.path_properties.copy()
-            is_file = self.to_path(parts).is_file()
-            is_stored = part == parts[-1]
-            # Defines the property
-            property = obj[part]["//"]
-            time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-            property["file"] = is_file
-            property["stored"] = is_stored
-            property["stored_in"] = time if is_stored else None
+                update_properties(
+                    properties=obj[part]["//"],
+                    file=is_file,
+                    stored=is_stored,
+                    stored_in=time if is_stored else None
+                )
+            else:
+                if is_stored:
+                    # Update the stored_in if this is the stored part.
+                    update_properties(
+                        properties=obj[part]["//"],
+                        file=is_file,
+                        stored=is_stored,
+                        stored_in=time,
+                    )
+
             obj = obj[part]
 
     def remove_path(self, path: str) -> None:
@@ -172,9 +204,9 @@ class PathManager:
         """
         path_class = pathlib.Path
         if isinstance(path, str):
-            path_object = path_class(path)
+            path_object = path_class(path.lower())
         elif isinstance(path, (list, tuple)):
-            path_object = path_class(*path)
+            path_object = path_class(*list(part.lower() for part in path))
         else:
             raise TypeError(msg["type_error"].format(f"{str.__name__}, {list.__name__}", type(path).__name__))
         if not path_object.exists():
@@ -189,7 +221,7 @@ class PathManager:
         paths (List[str]): List of paths that will be removed.
         """
         for path in paths:
-            self.remove(path)
+            self.remove_path(path=path)
 
     def strorage_rm(self, path: str) -> None:
         """
