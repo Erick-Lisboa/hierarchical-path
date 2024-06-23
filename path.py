@@ -1,10 +1,9 @@
 import json
-import pathlib
+import os
 from typing import (
     Dict,
     Optional,
     Union,
-    Literal,
     List,
     Tuple,
 )
@@ -36,6 +35,8 @@ class PathManager:
         Hierarchical path storage data.
     path_properties: dict
         Paths property object.
+    properties: str
+        Path properties symbol.
     """
 
     def __init__(
@@ -48,31 +49,32 @@ class PathManager:
         else:
             self.data = {} if data is None else data
         self.path_properties = {"file": False, "stored": False, "stored_in": None}
+        self.properties = "//"
 
-    def _add(self, obj: Dict[str, Optional[Dict]], parts: Union[List[str], Tuple[str]]) -> None:
+    def _add(self, obj: Dict[str, Dict], parts: Union[List[str], Tuple[str]]) -> None:
         """
         Adds the path parts to the object.
 
         Parameters:
-        obj (dict): Object that will be edited.
-        path (list): The listed parts of a path that will be added to the obj.
+        obj (Dict[str, Dict]): Object that will be edited.
+        path (Union[List[str], Tuple[str]]): The listed parts of a path that will be added to the obj.
         """
         import datetime
 
         def update_properties(
             properties: Dict[str, bool],
-            file: bool = False,
-            stored: bool = False,
-            stored_in: datetime.datetime = None
+            file: bool,
+            stored: bool,
+            stored_in: datetime.datetime,
         ) -> None:
             """
             Changes the properties of the stored part.
 
             Parameters:
             properties (Dict[str, bool]):
-            file (bool, optional): . Defaults to False.
-            stored (bool, optional): . Defaults to False.
-            stored_in (datetime.datetime, optional): . Defaults to None.
+            file (bool): If the part is a file. Defaults to False.
+            stored (bool): If the part is stored. Defaults to False.
+            stored_in (datetime.datetime): Date the path was stored. Defaults to None.
             """
             properties["file"] = file
             properties["stored"] = stored
@@ -81,15 +83,15 @@ class PathManager:
         time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
         for part in parts:
-            is_file = self.to_path(parts).is_file()
+            is_file = os.path.isfile(*parts)
             is_stored = part == parts[-1]
 
             if part not in obj:
                 obj[part] = {}
                 # Defines the property object.
-                obj[part]["//"] = self.path_properties.copy()
+                obj[part][self.properties] = self.path_properties.copy()
                 update_properties(
-                    properties=obj[part]["//"],
+                    properties=obj[part][self.properties],
                     file=is_file,
                     stored=is_stored,
                     stored_in=time if is_stored else None
@@ -98,7 +100,7 @@ class PathManager:
                 if is_stored:
                     # Update the stored_in if this is the stored part.
                     update_properties(
-                        properties=obj[part]["//"],
+                        properties=obj[part][self.properties],
                         file=is_file,
                         stored=is_stored,
                         stored_in=time,
@@ -106,15 +108,37 @@ class PathManager:
 
             obj = obj[part]
 
-    def remove_path(self, path: str) -> None:
+    def _get_all(self, obj: Dict[str, Dict], current_path: str = "") -> List[str]:
         """
-        Removes the managed path.
+        Gets the object's stored paths.
 
         Parameters:
-        path (str): Path that will be removed.
+            obj (Dict[str, Dict]): Object with stored paths.
+            current_path (str): Current path.. Defaults to "".
+
+        Returns:
+            List[str]: List of stored paths.
         """
-        path_obj = self.to_path(path=path)
-        self._rm(obj=self.data, parts=path_obj.parts)
+        paths = []
+        obj_ = obj.copy()
+
+        for part, apex in obj_.items():
+            if part == self.properties:
+                if apex["stored"]:
+                    paths.append(current_path)
+                continue
+            new_path = f"{current_path}/{part}" if current_path else part.removesuffix("\\")
+            paths.extend(self._get_all(apex, new_path))
+        return paths
+
+    def add_path(self, path: str) -> None:
+        """
+        Path that will be added.
+
+        Parameters:
+        path (str): 
+        """
+        self._add(obj=self.data, parts=path.split("/"))
 
     def get_all(self) -> Optional[List[str]]:
         """
@@ -124,46 +148,32 @@ class PathManager:
         List[str]: All stored paths.
         None: If there is no data stored.
         """
-    def get_data(self) -> Dict[str, Optional[Dict]]:
+        return self._get_all(self.data)
+
+    def get_data(self) -> Dict[str, Dict]:
         """
         Get the current data.
+
+        Returns:
+        Dict[str, Dict]: Object being managed.
         """
         return getattr(self, "data")
 
-    def get_path(self, obj: Dict[str, Optional[Dict]]) -> str:
+    def get_properties(self, path: str) -> Dict[str, Dict]:
         """
-        Returns the path of the past object.
+        Returns the property object of a path.
 
         Parameters:
-        obj (Dict[str, Optional[Dict]]): Object that will take the path.
+        path (str): Path in which its properties will be returned.
 
         Returns:
-        str: Path collected
+        Dict[str, Dict]: Path properties.
         """
-    def get_object(self, path: str) -> Dict[str, Optional[Dict]]:
-        """
-        Returns the path object.
-
-        Parameters:
-        path: Path that will be collected.
-
-        Returns:
-        Dict[str, Optional[Dict]]: Past path object.
-        """
-        obj = self.data
-        path_obj = self.to_path(path=path)
-        for part in path_obj.parts:
+        obj = self.data.copy()
+        for part in path.split("/"):
             obj = obj[part]
-        return obj
+        return obj[self.properties]
 
-    def get_stored(self) -> Optional[Dict[str, Optional[Dict]]]:
-        """
-        Returns the stored data if there is a file.
-
-        Returns:
-        Dict[str, Optional[Dict]]: Stored data.
-        None: If there is no data stored.
-        """
     def in_the_data(self, path: str) -> bool:
         """
         Returns whether the path is.
@@ -171,15 +181,7 @@ class PathManager:
         Returns:
         bool: If the path is stored.
         """
-    def add_path(self, path: str) -> None:
-        """
-        Path that will be added.
-
-        Parameters:
-        path (str): 
-        """
-        path_obj = self.to_path(path=path)
-        self._add(obj=self.data, parts=path_obj.parts)
+        return path in self.get_all()
 
     def load(self, fp: str) -> None:
         """
@@ -192,26 +194,38 @@ class PathManager:
             new_data = json.load(file)
             self.set_data(data=new_data)
 
-    def to_path(self, path: Union[str, List[str], Tuple[str]]) -> pathlib.Path:
+    def remove_path(self, path: str) -> None:
         """
-        Returns the path instance of the 'pathlib.Path' class.
+        Removes the managed path.
 
         Parameters:
-        path (Union[str, List[str], Tuple[str]]): Path for transformation into `Path` object.
-
-        Returns:
-        pathlib.Path: Path instance.
+        path (str): Path that will be removed.
         """
-        path_class = pathlib.Path
-        if isinstance(path, str):
-            path_object = path_class(path.lower())
-        elif isinstance(path, (list, tuple)):
-            path_object = path_class(*list(part.lower() for part in path))
-        else:
-            raise TypeError(msg["type_error"].format(f"{str.__name__}, {list.__name__}", type(path).__name__))
-        if not path_object.exists():
-            raise FileNotFoundError()
-        return path_object
+        def __add(obj: Dict[str, Dict], parts: Union[List[str], Tuple[str]]) -> None:
+            """
+            Adds the path to the restructured data.
+
+            Parameters:
+            obj (Dict[str, Dict]): Object that will be edited.
+            parts (Union[List[str], Tuple[str]]): The listed parts of a path that will be added to the obj.
+            """
+            for part in parts:
+                properties = self.get_properties(path=path)
+                if part not in obj:
+                    obj[part] = {}
+                    obj[part][self.properties] = properties if part == parts[-1] else self.path_properties
+                obj = obj[part]
+
+        paths = self.get_all()
+        paths.remove(path)
+        restructured_data = {}
+
+        # Adds the paths without the removed path.
+        for path in paths:
+            parts = path.split("/")
+            __add(obj=restructured_data, parts=parts)
+
+        self.set_data(data=restructured_data)
 
     def removes(self, paths: List[str]) -> None:
         """
@@ -223,34 +237,6 @@ class PathManager:
         for path in paths:
             self.remove_path(path=path)
 
-    def strorage_rm(self, path: str) -> None:
-        """
-        Removes the storage path without removing the nesting.
-
-        Parameters:
-            path (str): Path to be removed from storage.
-        """
-        path_obj = self.to_path(path=path)
-        parts = path_obj.parts
-        obj = self.data
-        for part in parts:
-            obj = obj[part]
-            if part == parts[-1]:
-                obj["//"] = self.path_properties.copy()
-
-    def _rm(self, obj: Dict[str, Optional[dict]], parts: List[str]) -> None:
-        """
-        Removes the path object passed in a list.
-
-        Parameters:
-        obj (Dict[str, Optional[dict]]): Object for the path to be removed.
-        path (list[str]): List of parts of a path.
-        """
-        if parts:
-            for part in parts[:-1]:
-                obj = obj[part]
-            del obj[parts[-1]]
-
     def save(self, fp: str) -> None:
         """
         Saves data to the storage file if the file is not None.
@@ -258,13 +244,27 @@ class PathManager:
         with open(str(fp), "w") as file:
             json.dump(self.data, file, indent=2)
 
-    def set_data(self, data: Dict[str, Optional[dict]]) -> None:
+    def set_data(self, data: Dict[str, Dict]) -> None:
         """
         Resets the managed data.
 
         Parameters:
-        data: Dict[str, Optional[dict]]: Data that will be managed.
+        data: Dict[str, Dict]: Data that will be managed.
         """
         if not isinstance(data, dict):
             raise TypeError(msg["type_error"].format(str.__name__, type(data).__name__))
         setattr(self, "data", data)
+
+    def strorage_rm(self, path: str) -> None:
+        """
+        Removes the storage path without removing the nesting.
+
+        Parameters:
+            path (str): Path to be removed from storage.
+        """
+        parts = path.split("/")
+        obj = self.data
+        for part in parts:
+            obj = obj[part]
+            if part == parts[-1]:
+                obj[self.properties] = self.path_properties.copy()
