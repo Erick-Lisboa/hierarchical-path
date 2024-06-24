@@ -2,10 +2,10 @@ import json
 import os
 from typing import (
     Dict,
-    Optional,
-    Union,
     List,
+    Optional,
     Tuple,
+    Union,
 )
 
 msg = {
@@ -47,7 +47,7 @@ class PathManager:
         if storage_file is not None:
             self.load(fp=storage_file)
         else:
-            self.data = {} if data is None else data
+            self.data = {} if data is None else self.set_data(data=data)
         self.path_properties = {"file": False, "stored": False, "stored_in": None}
         self.properties = "//"
 
@@ -63,9 +63,9 @@ class PathManager:
 
         def update_properties(
             properties: Dict[str, bool],
-            file: bool,
-            stored: bool,
-            stored_in: datetime.datetime,
+            file: bool = False,
+            stored_: bool = False,
+            stored_in: datetime.datetime = None,
         ) -> None:
             """
             Changes the properties of the stored part.
@@ -73,17 +73,17 @@ class PathManager:
             Parameters:
             properties (Dict[str, bool]):
             file (bool): If the part is a file. Defaults to False.
-            stored (bool): If the part is stored. Defaults to False.
+            stored_ (bool): If the part is stored. Defaults to False.
             stored_in (datetime.datetime): Date the path was stored. Defaults to None.
             """
-            properties["file"] = file
-            properties["stored"] = stored
-            properties["stored_in"] = stored_in
+            properties["file"] = file if file is not None else properties["file"]
+            properties["stored"] = stored_ if stored_ is not None else properties["stored"]
+            properties["stored_in"] = stored_in if stored_in is not None else properties["stored_in"]
 
         time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
         for part in parts:
-            is_file = os.path.isfile(*parts)
+            is_file = os.path.isfile(os.path.join(*parts))
             is_stored = part == parts[-1]
 
             if part not in obj:
@@ -93,16 +93,15 @@ class PathManager:
                 update_properties(
                     properties=obj[part][self.properties],
                     file=is_file,
-                    stored=is_stored,
-                    stored_in=time if is_stored else None
+                    stored_=is_stored,
+                    stored_in=time if is_stored else None,
                 )
             else:
                 if is_stored:
                     # Update the stored_in if this is the stored part.
                     update_properties(
                         properties=obj[part][self.properties],
-                        file=is_file,
-                        stored=is_stored,
+                        stored_=is_stored,
                         stored_in=time,
                     )
 
@@ -140,13 +139,12 @@ class PathManager:
         """
         self._add(obj=self.data, parts=path.split("/"))
 
-    def get_all(self) -> Optional[List[str]]:
+    def get_all(self) -> Union[List[str], List]:
         """
         Returns all stored paths.
 
         Returns:
-        List[str]: All stored paths.
-        None: If there is no data stored.
+        Union[List[str], List]: Stored paths.
         """
         return self._get_all(self.data)
 
@@ -176,7 +174,7 @@ class PathManager:
 
     def in_the_data(self, path: str) -> bool:
         """
-        Returns whether the path is.
+        Returns whether the path is stored.
 
         Returns:
         bool: If the path is stored.
@@ -196,7 +194,7 @@ class PathManager:
 
     def remove_path(self, path: str) -> None:
         """
-        Removes the managed path.
+        Removes the path.
 
         Parameters:
         path (str): Path that will be removed.
@@ -229,7 +227,7 @@ class PathManager:
 
     def removes(self, paths: List[str]) -> None:
         """
-        Removes the passed path if the path is in the data.
+        Removes the passed path.
 
         Parameters:
         paths (List[str]): List of paths that will be removed.
@@ -239,14 +237,14 @@ class PathManager:
 
     def save(self, fp: str) -> None:
         """
-        Saves data to the storage file if the file is not None.
+        Saves data to the storage file.
         """
         with open(str(fp), "w") as file:
             json.dump(self.data, file, indent=2)
 
     def set_data(self, data: Dict[str, Dict]) -> None:
         """
-        Resets the managed data.
+        Sets the managed data.
 
         Parameters:
         data: Dict[str, Dict]: Data that will be managed.
@@ -254,17 +252,3 @@ class PathManager:
         if not isinstance(data, dict):
             raise TypeError(msg["type_error"].format(str.__name__, type(data).__name__))
         setattr(self, "data", data)
-
-    def strorage_rm(self, path: str) -> None:
-        """
-        Removes the storage path without removing the nesting.
-
-        Parameters:
-            path (str): Path to be removed from storage.
-        """
-        parts = path.split("/")
-        obj = self.data
-        for part in parts:
-            obj = obj[part]
-            if part == parts[-1]:
-                obj[self.properties] = self.path_properties.copy()
