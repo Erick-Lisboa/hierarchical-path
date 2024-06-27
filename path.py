@@ -9,7 +9,8 @@ from typing import (
 )
 
 msg = {
-    "type_error": "The provided object must be a :class:`{}`, the provided object was: :class:`{}`"
+    "TypeError": "The provided object must be a :class:`{}`, the provided object was: :class:`{}`",
+    "FileNotFoundError": "Path \"{}\" was not found."
 }
 
 class PathManager:
@@ -58,7 +59,13 @@ class PathManager:
         Parameters:
         obj (Dict[str, Dict]): Object that will be edited.
         path (Union[List[str], Tuple[str]]): The listed parts of a path that will be added to the obj.
+
+        Raises:
+        FileNotFoundError: If the path is not found.
         """
+        if not os.path.exists(os.path.join(*parts)):
+            raise FileNotFoundError(msg["FileNotFoundError"].format("/".join(parts)))
+
         import datetime
 
         def update_properties(
@@ -98,7 +105,7 @@ class PathManager:
                 )
             else:
                 if is_stored:
-                    # Update the stored_in if this is the stored part.
+                    # Updates the stored_in if this is the stored part.
                     update_properties(
                         properties=obj[part][self.properties],
                         stored_=is_stored,
@@ -132,12 +139,21 @@ class PathManager:
 
     def add_path(self, path: str) -> None:
         """
-        Path that will be added.
+        Adds a new path.
 
         Parameters:
-        path (str): 
+        path (str): Path that will be added.
         """
         self._add(obj=self.data, parts=path.split("/"))
+
+    def adds(self, paths: List[str]) -> None:
+        """Adds the paths.
+
+        Parameters:
+            paths (List[str]): List of paths to be added.
+        """
+        for path in paths:
+            self.add_path(path=path)
 
     def get_all(self) -> Union[List[str], List]:
         """
@@ -150,7 +166,7 @@ class PathManager:
 
     def get_data(self) -> Dict[str, Dict]:
         """
-        Get the current data.
+        Gets the current data.
 
         Returns:
         Dict[str, Dict]: Object being managed.
@@ -198,7 +214,13 @@ class PathManager:
 
         Parameters:
         path (str): Path that will be removed.
+        
+        Raises:
+        FileNotFoundError: If the path is not found.
         """
+        if os.path.exists(os.path.join(path)):
+            raise FileNotFoundError(msg["FileNotFoundError"].format(path))
+
         def __add(obj: Dict[str, Dict], parts: Union[List[str], Tuple[str]]) -> None:
             """
             Adds the path to the restructured data.
@@ -227,7 +249,7 @@ class PathManager:
 
     def removes(self, paths: List[str]) -> None:
         """
-        Removes the passed path.
+        Removes the paths.
 
         Parameters:
         paths (List[str]): List of paths that will be removed.
@@ -248,6 +270,9 @@ class PathManager:
 
         Parameters:
         data: Dict[str, Dict]: Data that will be managed.
+
+        Raises:
+        TypeError: If the data is not a dictionary.
         """
         if not isinstance(data, dict):
             raise TypeError(msg["type_error"].format(str.__name__, type(data).__name__))
