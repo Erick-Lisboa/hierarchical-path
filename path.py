@@ -63,7 +63,7 @@ class PathManager:
         Raises:
         FileNotFoundError: If the path is not found.
         """
-        if not os.path.exists(os.path.join(*parts)):
+        if not os.path.exists(os.path.join("/".join(parts))):
             raise FileNotFoundError(msg["FileNotFoundError"].format("/".join(parts)))
 
         import datetime
@@ -90,7 +90,7 @@ class PathManager:
         time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
         for part in parts:
-            is_file = os.path.isfile(os.path.join(*parts))
+            is_file = os.path.isfile(os.path.join("/".join(parts)))
             is_stored = part == parts[-1]
 
             if part not in obj:
@@ -144,6 +144,8 @@ class PathManager:
         Parameters:
         path (str): Path that will be added.
         """
+        if not path:
+            return
         self._add(obj=self.data, parts=path.split("/"))
 
     def adds(self, paths: List[str]) -> None:
@@ -218,7 +220,9 @@ class PathManager:
         Raises:
         FileNotFoundError: If the path is not found.
         """
-        if os.path.exists(os.path.join(path)):
+        if not path:
+            return
+        elif not os.path.exists(os.path.join(path)):
             raise FileNotFoundError(msg["FileNotFoundError"].format(path))
 
         def __add(obj: Dict[str, Dict], parts: Union[List[str], Tuple[str]]) -> None:
