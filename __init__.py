@@ -1,3 +1,3 @@
-from .path import PathManager
+from .main import PathManager
 
 __all__ = ["PathManager"]

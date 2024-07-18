@@ -1,0 +1,20 @@
+[build-system]
+requires=["setuptools"]
+
+[project]
+name = "pathtree"
+version = "0.1.0"
+readme = "README.rd"
+description = Path manager for hierarchical storage.
+authors = [
+    {name = "Erick", email = "erickmarllonlc@gmail.com}
+]
+license = {file = "LICENSE"}
+repository = "https://github.com/Erick-Lisboa/hierarchical-path"
+clasifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers,
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Operating System :: Microsoft :: Windows"
+]
